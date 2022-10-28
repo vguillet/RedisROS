@@ -18,7 +18,7 @@ As such, the development of this library has been done according to the followin
 
 - **Minimal development overhead:** pyROS gets rid of all unnecessary steps when possible. There is no more need for compiling, messages definitions, packages etc.
 
-- **Minimal dependencies:** To further reduce complexity, dependencies where kept to a minimum. The only major dependency being *Redis*,  and the *python-redis-lock* library.
+- **Minimal dependencies:** To further reduce complexity, dependencies are kept to a minimum. The only major dependency being *Redis*,  and the *python-redis-lock* library.
 
 - **Modular and expandable:** pyROS was coded to be easily expanded. New interfaces can easily be setup, allowing for testing new configurations and ideas.
 
