@@ -168,20 +168,20 @@ class Shared_variable(Endpoint):
 
         if instant:
             # -> Update the shared_variable value
-            self.client.set(self.name, json.dumps(new_value))
+            self.client.set(name=self.name, value=json.dumps(new_value))
 
             # -> Cache the cache value
             self.__cached_value = None
 
         else:
             # -> Set the cached value
-            with Lock(redis_client=self.client, name=self.ref):
+            with Lock(redis_client=self.client, name=self.name):
                 self.__cached_value = new_value
 
     def declare_endpoint(self) -> None:
         with Lock(redis_client=self.client, name=self.comm_graph):
             # -> Get the communication graph from the redis server
-            comm_graph = json.loads(self.client.get(self.comm_graph))
+            comm_graph = self.client.json().get(self.comm_graph)
 
             # -> Declare the endpoint in the parent node
             comm_graph[self.parent_address].append(
@@ -194,12 +194,12 @@ class Shared_variable(Endpoint):
             )
 
             # -> Update comm_graph shared variable
-            self.client.set(self.comm_graph, json.dumps(comm_graph))
+            self.client.json().set(self.comm_graph, "$",  comm_graph)
 
     def destroy_endpoint(self) -> None:
         with Lock(redis_client=self.client, name=self.comm_graph):
             # -> Get the communication graph from the redis server
-            comm_graph = json.loads(self.client.get(self.comm_graph))
+            comm_graph = self.client.json().get(self.comm_graph)
 
             # -> Undeclare the endpoint in the parent node
             comm_graph[self.parent_address].remove(
@@ -212,4 +212,4 @@ class Shared_variable(Endpoint):
             )
 
             # -> Update comm_graph shared variable
-            self.client.set(self.comm_graph, json.dumps(comm_graph))
+            self.client.json().set(self.comm_graph, "$",  comm_graph)

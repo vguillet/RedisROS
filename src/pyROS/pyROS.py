@@ -79,18 +79,16 @@ class PyROS(
         with Lock(redis_client=self.client, name=self.comm_graph):
             if not self.client.exists(self.comm_graph):
                 # -> Create comm_graph shared variable
-                self.client.set(self.comm_graph, json.dumps({
-                    f"{self.address}": []
-                }))
+                self.client.json().set(self.comm_graph, "$", {f"{self.address}": []})
             else:
                 # -> Get comm_graph shared variable
-                comm_graph = json.loads(self.client.get(self.comm_graph))
+                comm_graph = self.client.json().get(self.comm_graph)
 
                 # -> Add node to comm_graph
                 comm_graph[f"{self.address}"] = []
 
                 # -> Update comm_graph shared variable
-                self.client.set(self.comm_graph, json.dumps(comm_graph))
+                self.client.json().set(self.comm_graph, "$",  comm_graph)
 
         # -> Initialise the node dictionary
         self._node_dict = {
@@ -100,7 +98,7 @@ class PyROS(
         # -> Initialise pointers
         self.spinning = False
         self.threaded_spin = None
-        self.threaded_timer_period = 0.00001
+        self.threaded_timer_period = 0.01
 
         # -> Initialise the node callbackgroups dictionary
         self.callbackgroups = {
@@ -203,18 +201,19 @@ class PyROS(
         Spin while the condition is met.
         """
 
-        timer = self.create_timer(self.threaded_timer_period, self.spin_once)
+        timer = self.create_timer(timer_period_sec=self.threaded_timer_period, 
+                                  callback=self.spin_once)
 
-        while self.default_spin_condition.get_value():
+        while self.default_spin_condition.get_value(spin=True):
             pass
-
-        timer.cancel()
+        
+        self.destroy_timer(timer=timer)
 
         with Lock(redis_client=self.client, name=self.ref):
             self.spinning = False
 
             # -> Reset spin control variable
-            self.default_spin_condition.set_value(True)
+            self.default_spin_condition.set_value(value=True, instant=True)
 
     def __conditional_spin(self, spin_condition):
         """
@@ -223,7 +222,7 @@ class PyROS(
 
         timer = self.create_timer(self.threaded_timer_period, self.spin_once)
 
-        while spin_condition.get_value() and self.default_spin_condition.get_value():
+        while spin_condition.get_value() and self.default_spin_condition.get_value(spin=True):
             pass
 
         timer.cancel()
@@ -232,14 +231,14 @@ class PyROS(
             self.spinning = False
 
             # -> Reset spin control variable
-            self.default_spin_condition.set_value(True)
+            self.default_spin_condition.set_value(value=True, instant=True)
 
     def spin_once(self) -> None:
         """
         For every callback group, call the callbacks in a reentrant way.
         """
         # -> Create a thread pool
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        with ThreadPoolExecutor(max_workers=100) as executor:
             # -> Run every callback group in the callback group dictionary in a reentrant way
             for callback_group in self.callbackgroups.values():
                 executor.submit(callback_group.spin)
