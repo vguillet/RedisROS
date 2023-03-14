@@ -12,7 +12,8 @@ class Publisher(Endpoint):
                  msg_type: str = "Unspecified",
                  qos_profile=None,
                  parent_node_ref: str = None,
-                 ):
+                 namespace: str = ""
+                 ) -> None:
         """
         Create a publisher endpoint for the given topic
 
@@ -25,14 +26,16 @@ class Publisher(Endpoint):
 
         # -> Initialise the publisher properties
         self.msg_type = msg_type
-        self.topic = self.check_topic(topic=topic)
+        self.topic = self.get_topic(topic_elements=[topic])
         self.qos_profile = qos_profile
 
         # -> Initialise the publisher's cache
         self.cache = []
 
         # -> Setup endpoint
-        Endpoint.__init__(self, parent_node_ref=parent_node_ref)
+        Endpoint.__init__(self, 
+                          parent_node_ref=parent_node_ref,
+                          namespace=namespace)
 
         # -> Declare the endpoint in the comm graph
         self.declare_endpoint()
@@ -43,7 +46,7 @@ class Publisher(Endpoint):
             "timestamp": datetime.timestamp(datetime.now()),
             "msg_type": self.msg_type,
             "parent_node_ref": self.parent_node_ref,
-            "publisher_ref": self.ref,
+            "publisher_id": self.id,
             "msg": msg
         }
 
@@ -86,33 +89,33 @@ class Publisher(Endpoint):
             self.cache.append(msg)
 
     def declare_endpoint(self) -> None:
-        with Lock(redis_client=self.client, name="Comm_graph"):
+        with Lock(redis_client=self.client, name=self.comm_graph):
             # -> Get the communication graph from the redis server
-            comm_graph = json.loads(self.client.get("Comm_graph"))
+            comm_graph = json.loads(self.client.get(self.comm_graph))
 
             # -> Declare the endpoint in the parent node
-            comm_graph[self.parent_node_ref].append(
-                {"ref": self.ref,
+            comm_graph[self.parent_address].append(
+                {"id": self.id,
                  "type": "publisher",
                  "msg_type": self.msg_type,
                  "topic": self.topic}
             )
 
             # -> Update comm_graph shared variable
-            self.client.set("Comm_graph", json.dumps(comm_graph))
+            self.client.set(self.comm_graph, json.dumps(comm_graph))
 
     def destroy_endpoint(self) -> None:
-        with Lock(redis_client=self.client, name="Comm_graph"):
+        with Lock(redis_client=self.client, name=self.comm_graph):
             # -> Get the communication graph from the redis server
-            comm_graph = json.loads(self.client.get("Comm_graph"))
+            comm_graph = json.loads(self.client.get(self.comm_graph))
 
             # -> Undeclare the endpoint in the parent node
-            comm_graph[self.parent_node_ref].remove(
-                {"ref": self.ref,
+            comm_graph[self.parent_address].remove(
+                {"id": self.id,
                  "type": "publisher",
                  "msg_type": self.msg_type,
                  "topic": self.topic}
             )
 
             # -> Update comm_graph shared variable
-            self.client.set("Comm_graph", json.dumps(comm_graph))
+            self.client.set(self.comm_graph, json.dumps(comm_graph))

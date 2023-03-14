@@ -41,10 +41,11 @@ class Subscriber_module:
         # -> Create a subscription for the given topic
         new_subscription = Subscriber(
             msg_type=msg_type,
-            topic=self.namespace + topic,
+            topic=topic,
             callback=callback,
             qos_profile=qos_profile,
-            parent_node_ref=self.ref
+            parent_node_ref=self.ref,
+            namespace=self.namespace
             )
 
         # -> If not callback group is given, use the default publisher callback group

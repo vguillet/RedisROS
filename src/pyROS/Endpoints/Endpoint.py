@@ -8,7 +8,8 @@ from redis import Redis
 
 class Endpoint(ABC):
     def __init__(self,
-                 parent_node_ref: str
+                 parent_node_ref: str,
+                 namespace: str = ""
                  ):
         """
         The base class for all endpoints
@@ -17,13 +18,35 @@ class Endpoint(ABC):
         """
 
         # -> Generate a unique ID for the subscriber
-        self.ref = ''.join([random.choice(string.ascii_letters + string.digits) for _ in range(8)])
+        self.id = str(id(self))
 
         # -> Set the parent node reference
-        self.parent_node_ref = "/" + parent_node_ref
+        self.parent_node_ref = parent_node_ref
+        self.parent_address = self.get_topic(topic_elements=[parent_node_ref])
+
+        # -> Set namespace/comm graph
+        self.namespace = namespace
+
+        # -> Get comm_graph
+        self.comm_graph = "Comm_graph"
+
+        if self.namespace != "":
+            self.comm_graph = self.get_topic(topic_elements=[namespace, self.comm_graph])
 
         # -> Setup endpoint redis connection
-        self.client = Redis(client_name=self.ref)
+        self.client = Redis(client_name=self.id)
+
+    @staticmethod
+    def get_topic(topic_elements: list):
+        topic = "/"
+
+        for topic_element in topic_elements:
+            topic += f"{topic_element}/"
+
+        if topic[0] == topic[1] and topic[0]:   # TODO: Fix to also check for if == \
+            topic = topic[1:]
+
+        return topic[:-1] 
 
     @staticmethod
     def check_topic(topic):
@@ -33,7 +56,7 @@ class Endpoint(ABC):
 
         # -> Check if topic starts with /
         if topic[0] != "/":
-            raise ValueError("Topic must start with '/'")
+            raise ValueError(f"Topic must start with '/', current topic: {topic}")
 
         else:
             return topic

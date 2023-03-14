@@ -16,7 +16,9 @@ class Shared_variable(Endpoint):
                  variable_type: str = "unspecified",
                  descriptor: str = "",
                  ignore_override: bool = False,
-                 parent_node_ref: str = None):
+                 parent_node_ref: str = None,
+                 namespace: str = ""
+                 ) -> None:
         """
         Create a iteration2 shared_variable endpoint
 
@@ -31,13 +33,15 @@ class Shared_variable(Endpoint):
         """
 
         # -> Setup endpoint
-        Endpoint.__init__(self, parent_node_ref=parent_node_ref)
+        Endpoint.__init__(self, 
+                          parent_node_ref=parent_node_ref,
+                          namespace=namespace)
 
         # -> Initialise the shared_variable properties
         if scope == "global":
-            self.name = name
+            self.name = self.get_topic(topic_elements=[namespace, name])
         else:
-            self.name = self.parent_node_ref + name
+            self.name = self.get_topic(topic_elements=[namespace, self.parent_node_ref, name])
 
         self.scope = scope
         self.variable_type = variable_type
@@ -62,8 +66,8 @@ class Shared_variable(Endpoint):
             "timestamp": datetime.timestamp(datetime.now()),
             "variable_type": self.variable_type,
             "descriptor": self.descriptor,
-            "parent_node_ref": self.parent_node_ref,
-            "setter_ref": self.ref,
+            # "parent_node_ref": self.parent_node_ref,
+            "setter_id": self.parent_node_ref,
             "value": value
         }
 
@@ -82,7 +86,7 @@ class Shared_variable(Endpoint):
         """
 
         # -> Push cached value if it is not None
-        with Lock(redis_client=self.client, name=self.ref):
+        with Lock(redis_client=self.client, name=self.id):
             if self.__cached_value is not None:
                 with Lock(redis_client=self.client, name=self.name):
                     # -> Update the shared value with the cached value if the cached value is newer than the shared value
@@ -175,13 +179,13 @@ class Shared_variable(Endpoint):
                 self.__cached_value = new_value
 
     def declare_endpoint(self) -> None:
-        with Lock(redis_client=self.client, name="Comm_graph"):
+        with Lock(redis_client=self.client, name=self.comm_graph):
             # -> Get the communication graph from the redis server
-            comm_graph = json.loads(self.client.get("Comm_graph"))
+            comm_graph = json.loads(self.client.get(self.comm_graph))
 
             # -> Declare the endpoint in the parent node
-            comm_graph[self.parent_node_ref].append(
-                {"ref": self.ref,
+            comm_graph[self.parent_address].append(
+                {"id": self.id,
                  "type": "shared_variable",
                  "name": self.name,
                  "scope": self.scope,
@@ -190,16 +194,16 @@ class Shared_variable(Endpoint):
             )
 
             # -> Update comm_graph shared variable
-            self.client.set("Comm_graph", json.dumps(comm_graph))
+            self.client.set(self.comm_graph, json.dumps(comm_graph))
 
     def destroy_endpoint(self) -> None:
-        with Lock(redis_client=self.client, name="Comm_graph"):
+        with Lock(redis_client=self.client, name=self.comm_graph):
             # -> Get the communication graph from the redis server
-            comm_graph = json.loads(self.client.get("Comm_graph"))
+            comm_graph = json.loads(self.client.get(self.comm_graph))
 
             # -> Undeclare the endpoint in the parent node
-            comm_graph[self.parent_node_ref].remove(
-                {"ref": self.ref,
+            comm_graph[self.parent_address].remove(
+                {"id": self.id,
                  "type": "shared_variable",
                  "name": self.name,
                  "scope": self.scope,
@@ -208,4 +212,4 @@ class Shared_variable(Endpoint):
             )
 
             # -> Update comm_graph shared variable
-            self.client.set("Comm_graph", json.dumps(comm_graph))
+            self.client.set(self.comm_graph, json.dumps(comm_graph))

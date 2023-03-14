@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-
+from dep.pyROS.src.pyROS.Config import *
 
 class CallbackGroup:
     def __init__(self, name: str = ""):

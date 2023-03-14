@@ -10,7 +10,7 @@ class Shared_variable_module:
     def declare_shared_variable(self,
                                 name: str,
                                 value: int or float or str or bool = None,
-                                descriptor=None,
+                                descriptor: str = "",
                                 scope="global",
                                 variable_type: str = "unspecified",
                                 ignore_override: bool = False) -> Shared_variable:
@@ -42,8 +42,11 @@ class Shared_variable_module:
             value=value,
             scope=scope,
             variable_type=variable_type,
+            descriptor=descriptor,
             ignore_override=ignore_override,
-            parent_node_ref=self.ref)
+            parent_node_ref=self.ref,
+            namespace=self.namespace
+            )
 
         # -> Add the shared_variable to the default shared_variable callback group
         self.callbackgroups["default_shared_variable_callback_group"].add_callback(new_shared_variable)

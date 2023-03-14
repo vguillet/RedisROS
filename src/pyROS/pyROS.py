@@ -47,12 +47,21 @@ class PyROS(
     # ROS_publisher_module,
     # ROS_subscriber_module,
 ):
-    def __init__(self, namespace: str = "", ref: str = None):
+    def __init__(self, 
+                 ref: str = None,
+                 namespace: str = ""
+                 ) -> None:
         # -> Setup endpoint redis connection
         self.client = Redis()
 
-        # -> Initialise the node
+        # ---- Initialise the node
         self.namespace = namespace
+
+        # -> Get comm_graph
+        self.comm_graph = "Comm_graph"
+
+        if self.namespace != "":
+            self.comm_graph = self.get_topic(topic_elements=[namespace, self.comm_graph])
 
         # -> Initialise ref if it does not exist
         if ref is not None:
@@ -63,22 +72,25 @@ class PyROS(
             # -> Generate a random ref
             self.ref = ''.join([random.choice(string.ascii_letters + string.digits) for _ in range(8)])
 
+        # -. Generate node address
+        self.address = self.get_topic(topic_elements=[self.ref])
+
         # -> Declare node
-        with Lock(redis_client=self.client, name="Comm_graph"):
-            if not self.client.exists("Comm_graph"):
+        with Lock(redis_client=self.client, name=self.comm_graph):
+            if not self.client.exists(self.comm_graph):
                 # -> Create comm_graph shared variable
-                self.client.set("Comm_graph", json.dumps({
-                    f"/{self.ref}": []
+                self.client.set(self.comm_graph, json.dumps({
+                    f"{self.address}": []
                 }))
             else:
                 # -> Get comm_graph shared variable
-                comm_graph = json.loads(self.client.get("Comm_graph"))
+                comm_graph = json.loads(self.client.get(self.comm_graph))
 
                 # -> Add node to comm_graph
-                comm_graph[f"/{self.ref}"] = []
+                comm_graph[f"{self.address}"] = []
 
                 # -> Update comm_graph shared variable
-                self.client.set("Comm_graph", json.dumps(comm_graph))
+                self.client.set(self.comm_graph, json.dumps(comm_graph))
 
         # -> Initialise the node dictionary
         self._node_dict = {
@@ -104,7 +116,7 @@ class PyROS(
         # -> Setup node messaging basis
         # -> Spin control variable
         self.default_spin_condition = self.declare_shared_variable(
-            name="/default_spin_condition",
+            name=f"default_spin_condition",
             value=True,
             descriptor=f"Default_spin_condition variable for node {self.ref}. Can be used to kill and spin process.",
             scope="local"
@@ -303,3 +315,13 @@ class PyROS(
 
         # -> Remove the timer from the node dictionary timers
         del self._node_dict["timers"][timer.ref]
+
+
+    @staticmethod
+    def get_topic(topic_elements: list):
+        topic = "/"
+
+        for topic_element in topic_elements:
+            topic += f"{topic_element}/"
+
+        return topic[:-1] 

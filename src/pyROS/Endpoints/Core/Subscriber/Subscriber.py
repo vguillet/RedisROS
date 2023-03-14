@@ -11,7 +11,9 @@ class Subscriber(Endpoint):
                  callback,
                  msg_type: str = "Unspecified",
                  qos_profile=None,
-                 parent_node_ref: str = None):
+                 parent_node_ref: str = None,
+                 namespace: str = ""
+                 ) -> None:
         """
         Create a subscriber endpoint for the given topic
 
@@ -25,13 +27,14 @@ class Subscriber(Endpoint):
 
         # -> Initialise the subscriber properties
         self.msg_type = msg_type
-        self.topic = self.check_topic(topic=topic)
+        self.topic = self.get_topic(topic_elements=[topic])
         self.callback = callback
         self.qos_profile = qos_profile
 
         # -> Setup endpoint
-        Endpoint.__init__(self,
-                          parent_node_ref=parent_node_ref)
+        Endpoint.__init__(self, 
+                          parent_node_ref=parent_node_ref,
+                          namespace=namespace)
 
         # -> Setup the subscriber's pubsub connection
         self.pubsub = self.client.pubsub(ignore_subscribe_messages=True)
@@ -65,29 +68,29 @@ class Subscriber(Endpoint):
             self.callback(raw_msg["msg"])
 
     def declare_endpoint(self) -> None:
-        with Lock(redis_client=self.client, name="Comm_graph"):
+        with Lock(redis_client=self.client, name=self.comm_graph):
             # -> Get the communication graph from the redis server
-            comm_graph = json.loads(self.client.get("Comm_graph"))
+            comm_graph = json.loads(self.client.get(self.comm_graph))
 
             # -> Declare the endpoint in the parent node
-            comm_graph[self.parent_node_ref].append(
-                {"ref": self.ref,
+            comm_graph[self.parent_address].append(
+                {"id": self.id,
                  "type": "subscriber",
                  "msg_type": self.msg_type,
                  "topic": self.topic}
             )
 
             # -> Update comm_graph shared variable
-            self.client.set("Comm_graph", json.dumps(comm_graph))
+            self.client.set(self.comm_graph, json.dumps(comm_graph))
 
     def destroy_endpoint(self) -> None:
-        with Lock(redis_client=self.client, name="Comm_graph"):
+        with Lock(redis_client=self.client, name=self.comm_graph):
             # -> Get the communication graph from the redis server
-            comm_graph = json.loads(self.client.get("Comm_graph"))
+            comm_graph = json.loads(self.client.get(self.comm_graph))
 
             # -> Undeclare the endpoint in the parent node
-            comm_graph[self.parent_node_ref].remove(
-                {"ref": self.ref,
+            comm_graph[self.parent_address].remove(
+                {"id": self.id,
                  "type": "subscriber",
                  "msg_type": self.msg_type,
                  "topic": self.topic}
@@ -97,4 +100,13 @@ class Subscriber(Endpoint):
             self.pubsub.unsubscribe()
 
             # -> Update comm_graph shared variable
-            self.client.set("Comm_graph", json.dumps(comm_graph))
+            self.client.set(self.comm_graph, json.dumps(comm_graph))
+
+    @staticmethod
+    def get_topic(topic_elements: list):
+        topic = "/"
+
+        for topic_element in topic_elements:
+            topic += f"{topic_element}/"
+
+        return topic[:-1] 

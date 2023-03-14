@@ -40,9 +40,10 @@ class Publisher_module:
         # -> Create a publisher for the given topic
         new_publisher = Publisher(
             msg_type=msg_type,
-            topic=self.namespace + topic,
+            topic=topic,
             qos_profile=qos_profile,
             parent_node_ref=self.ref,
+            namespace=self.namespace
         )
 
         # -> If not callback group is given, use the default publisher callback group
