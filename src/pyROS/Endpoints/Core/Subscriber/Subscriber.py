@@ -1,4 +1,5 @@
 import json
+import traceback
 
 from redis.commands.graph import Graph, Edge, Node
 from redis_lock import Lock
@@ -59,14 +60,20 @@ class Subscriber(Endpoint):
         raw_msg = json.loads(raw_msg["data"])
 
         # -> Call the subscriber's callback function
-        
         # Attempt to provide both message and msg meta in callback
         try:
-            self.callback(raw_msg["msg"], raw_msg)
-        
-        # Only provide msg
+            try:
+                self.callback(raw_msg["msg"], raw_msg)
+            
+            # Only provide msg
+            except:
+                self.callback(raw_msg["msg"])
         except:
-            self.callback(raw_msg["msg"])
+            print("=============================================================")
+            print(f"ERROR:: {self.parent_address}: Subscriber to {self.topic} callback crashed")
+            print("-------------------------------------------------------------")
+            traceback.print_exc()
+            print("=============================================================")
 
     def declare_endpoint(self) -> None:
         with Lock(redis_client=self.client, name=self.comm_graph):
