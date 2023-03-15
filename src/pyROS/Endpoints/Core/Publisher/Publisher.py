@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 
+from redis.commands.graph import Graph, Edge, Node
 from redis_lock import Lock
 
 from dep.pyROS.src.pyROS.Endpoints.Endpoint import Endpoint
@@ -103,6 +104,37 @@ class Publisher(Endpoint):
 
             # -> Update comm_graph shared variable
             self.client.json().set(self.comm_graph, "$",  comm_graph)
+
+            # ======================== Redis graph declaration
+            # -> Add edge in redis graph
+            redis_graph = Graph(client=self.client, name="ROS_graph")
+
+            # -> Check if topic node is in graph
+            query = "MATCH (n:topic {name: '%s'}) RETURN n" % (self.topic)
+            topic_node = redis_graph.query(query).result_set
+
+            # -> Get topic node
+            if len(topic_node) == 0:    # if it does not exist
+                # -> Create topic node
+                topic_node = Node(
+                    label="topic",
+                    properties={
+                        "name": self.topic,
+                        "pyROS_id": self.id,
+                        "msg_type": str(self.msg_type),
+                        "namespace": self.namespace
+                    }
+                )
+
+                # -> Add to graph
+                redis_graph.add_node(node=topic_node)
+                redis_graph.commit()
+
+            # -> Create relationship
+            edge_properties = "{" + f"namespace: '{self.namespace}', msg_type: '{str(self.msg_type)}', qos_profile: '{str(self.qos_profile)}'" + "}"
+
+            query = f"MATCH (p:node), (t:topic) WHERE p.name = '{self.parent_address}' AND t.name = '{self.topic}' CREATE (p)-[r:Publish {edge_properties}] -> (t) RETURN r"
+            redis_graph.query(query)
 
     def destroy_endpoint(self) -> None:
         with Lock(redis_client=self.client, name=self.comm_graph):

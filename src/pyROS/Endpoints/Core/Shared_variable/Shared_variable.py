@@ -3,6 +3,7 @@ import warnings
 from datetime import datetime
 import json
 
+from redis.commands.graph import Graph, Edge, Node
 from redis_lock import Lock
 
 from dep.pyROS.src.pyROS.Endpoints.Endpoint import Endpoint
@@ -38,6 +39,7 @@ class Shared_variable(Endpoint):
                           namespace=namespace)
 
         # -> Initialise the shared_variable properties
+        self.scope = scope
         if scope == "global":
             self.name = self.get_topic(topic_elements=[namespace, name])
         else:
@@ -195,6 +197,46 @@ class Shared_variable(Endpoint):
 
             # -> Update comm_graph shared variable
             self.client.json().set(self.comm_graph, "$",  comm_graph)
+
+            # ======================== Redis graph declaration
+            # -> Add edge in redis graph
+            redis_graph = Graph(client=self.client, name="ROS_graph")
+
+           # -> Get shared variable name
+            node_name = self.name.split("/")[-1]
+
+            if self.scope == "local":
+                node_name = self.get_topic(topic_elements=[self.parent_address, node_name])
+            else:
+                node_name = self.get_topic(topic_elements=[node_name])
+
+            # -> Check if topic node is in graph
+            query = "MATCH (n:shared_variable {name: '%s'}) RETURN n" % (node_name)
+            topic_node = redis_graph.query(query).result_set
+                
+            if len(topic_node) == 0:    # if it does not exist
+                # -> Create topic node
+                topic_node = Node(
+                    label=["shared_variable", self.scope],
+                    properties={
+                        "name": node_name,
+                        "scope": self.scope,
+                        "variable_type": self.variable_type,
+                        "descriptor": self.descriptor,
+                        "pyROS_id": self.id,
+                        "namespace": self.namespace
+                    }
+                )
+
+                # -> Add to graph
+                redis_graph.add_node(node=topic_node)
+                redis_graph.commit()
+
+            # -> Create relationship
+            edge_properties = "{" + f"namespace: '{self.namespace}', variable_type: '{str(self.variable_type)}'" + "}"
+
+            query = f"MATCH (p:node), (v:shared_variable) WHERE p.name = '{self.parent_address}' AND v.name = '{node_name}' CREATE (p)-[r:Uses {edge_properties}] -> (v) RETURN r"
+            redis_graph.query(query)
 
     def destroy_endpoint(self) -> None:
         with Lock(redis_client=self.client, name=self.comm_graph):

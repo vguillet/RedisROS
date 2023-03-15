@@ -5,6 +5,8 @@ import string
 import json
 
 from redis import Redis
+from redis.commands.graph import Graph, Edge, Node
+
 from redis_lock import Lock
 
 # -> Import endpoint modules
@@ -55,6 +57,9 @@ class PyROS(
         self.client = Redis()
 
         # ---- Initialise the node
+        # -> Set id
+        self.id = str(id(self))
+
         self.namespace = namespace
 
         # -> Get comm_graph
@@ -80,6 +85,7 @@ class PyROS(
             if not self.client.exists(self.comm_graph):
                 # -> Create comm_graph shared variable
                 self.client.json().set(self.comm_graph, "$", {f"{self.address}": []})
+
             else:
                 # -> Get comm_graph shared variable
                 comm_graph = self.client.json().get(self.comm_graph)
@@ -89,6 +95,25 @@ class PyROS(
 
                 # -> Update comm_graph shared variable
                 self.client.json().set(self.comm_graph, "$",  comm_graph)
+
+            # -> Get pubsub graph
+            # redis_graph = Graph(client=self.client, name="RG" + self.comm_graph)
+            redis_graph = Graph(client=self.client, name="ROS_graph")
+
+            # -> Add node
+            new_node = Node(
+                # alias=self.id,
+                label="node",
+                properties={
+                    "name": self.address,
+                    "pyROS_id": self.id,
+                    "ref": self.ref,
+                    "namespace": self.namespace
+                }
+            )
+
+            redis_graph.add_node(node=new_node)
+            redis_graph.commit()
 
         # -> Initialise the node dictionary
         self._node_dict = {
