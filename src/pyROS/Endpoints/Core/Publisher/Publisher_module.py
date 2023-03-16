@@ -16,7 +16,9 @@ class Publisher_module:
         publishers = []
 
         for callback_group in self.callbackgroups.values():
-            publishers += callback_group.get_publishers()
+            for callback in callback_group.callbacks:
+                if isinstance(callback, Publisher):
+                    publishers.append(callback)
 
         # -> Return the list of publishers
         return publishers

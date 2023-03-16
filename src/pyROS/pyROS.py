@@ -14,6 +14,7 @@ from redis_lock import Lock
 from dep.pyROS.src.pyROS.Endpoints.Core.Publisher.Publisher_module import Publisher_module
 from dep.pyROS.src.pyROS.Endpoints.Core.Subscriber.Subscriber_module import Subscriber_module
 from dep.pyROS.src.pyROS.Endpoints.Core.Shared_variable.Shared_variable_module import Shared_variable_module
+from dep.pyROS.src.pyROS.Endpoints.Core.Timer.Timer_module import Timer_module
 
 # Custom
 
@@ -21,7 +22,7 @@ from dep.pyROS.src.pyROS.Endpoints.Core.Shared_variable.Shared_variable_module i
 from dep.pyROS.src.pyROS.Endpoints.Core.Publisher.Publisher import Publisher
 from dep.pyROS.src.pyROS.Endpoints.Core.Subscriber.Subscriber import Subscriber
 from dep.pyROS.src.pyROS.Endpoints.Core.Shared_variable.Shared_variable import Shared_variable
-from dep.pyROS.src.pyROS.Timer import Timer
+from dep.pyROS.src.pyROS.Async_timer import Async_timer
 
 from dep.pyROS.src.pyROS.Callback_groups import ReentrantCallbackGroup
 
@@ -44,6 +45,7 @@ class PyROS(
     Publisher_module,
     Subscriber_module,
     Shared_variable_module,
+    Timer_module,
 
     # Custom
     # ROS_publisher_module,
@@ -117,13 +119,12 @@ class PyROS(
 
         # -> Initialise the node dictionary
         self._node_dict = {
-            "timers": {},
+            "async_timers": {},
         }
 
         # -> Initialise pointers
-        self.spinning = False
         self.threaded_spin = None
-        self.threaded_timer_period = 0.01
+        self.spin_rate = 0.01
 
         # -> Initialise the node callbackgroups dictionary
         self.callbackgroups = {
@@ -131,6 +132,7 @@ class PyROS(
             "default_publisher_callback_group": ReentrantCallbackGroup(name="default_publisher_callback_group"),
             "default_subscriber_callback_group": ReentrantCallbackGroup(name="default_subscriber_callback_group"),
             "default_shared_variable_callback_group": ReentrantCallbackGroup(name="default_shared_variable_callback_group"),
+            "default_timer_callback_group": ReentrantCallbackGroup(name="default_timer_callback_group"),
 
             # Custom
             "ros_callback_group": ReentrantCallbackGroup(name="ros_callback_group"),
@@ -138,10 +140,10 @@ class PyROS(
 
         # -> Setup node messaging basis
         # -> Spin control variable
-        self.default_spin_condition = self.declare_shared_variable(
-            name=f"default_spin_condition",
-            value=True,
-            descriptor=f"Default_spin_condition variable for node {self.ref}. Can be used to kill and spin process.",
+        self.spin_state = self.declare_shared_variable(
+            name=f"spin_state",
+            value=False,
+            descriptor=f"Spin_state variable for node {self.ref}. Can be used to spin/stop node spin",
             scope="local"
         )
 
@@ -158,6 +160,7 @@ class PyROS(
         Publisher_module.__init__(self)
         Subscriber_module.__init__(self)
         Shared_variable_module.__init__(self)
+        Timer_module.__init__(self)
 
         # Custom
         # ROS_publisher_module.__init__(self)
@@ -165,9 +168,10 @@ class PyROS(
 
     # ================================================================== Spin logics
     def spin(self,
+             spin_rate: float = 0.01,
              condition: Shared_variable = None,
              threaded: bool = False,
-             threaded_timer_period: float = None) -> None:
+             ) -> None:
         """
         Spin the node until the condition is met or until default spin condition is False.
         If no condition is given, spin until default spin condition is False.
@@ -176,87 +180,90 @@ class PyROS(
 
         ROS2 compatibility note:
         - condition cannot be used
-        - threaded cannot be used (and by extension threaded_timer_period)
+        - threaded cannot be used
 
+        :param spin_rate: The rate rate at which to spin the node
         :param condition: A function that returns True or False. A condition must contain a control variable
         :param threaded: If True, spin in a separate thread.
-        :param threaded_timer_period: The period of the timer used to spin in a separate thread.
         """
-
-        if not self.spinning:
+        if not self.spin_state.get_value(spin=True):
             with Lock(redis_client=self.client, name=self.ref):
-                self.spinning = True
+                # -> Reset spin control variable
+                self.spin_state.set_value(value=True, instant=True)
 
-            # -> Set threaded timer period if provided
-            if threaded_timer_period is not None:
-                self.threaded_timer_period = threaded_timer_period
+            # -> Set spin rate
+            self.spin_rate = spin_rate
 
             # ----- Condition provided
-            # -> If threaded is True, spin in a timer thread
+            # -> If threaded is True and condition is given
             if threaded and condition is not None:
                 self.threaded_spin = Thread(target=self.__conditional_spin, args=(condition,))
                 self.threaded_spin.start()
 
-            # -> If condition is given
+            # -> If threaded is False and condition is given
             elif condition is not None:
-                while condition.get_value() and self.default_spin_condition.get_value():
-                    self.spin_once()
-
-                # -> Reset spin control variable
-                self.default_spin_condition.set_value(True)
+                self.__conditional_spin(spin_condition=condition)
 
             # ----- No condition provided
+            # -> If threaded is True and no condition is given
             elif threaded:
                 self.threaded_spin = Thread(target=self.__unconditional_spin)
                 self.threaded_spin.start()
 
-            # -> If condition is not given, spin forever (break if spin control variable is False)
+            # -> If threaded is False and no condition is given
             else:
-                while self.default_spin_condition.get_value():
-                    self.spin_once()
-
-                # -> Reset spin control variable
-                self.default_spin_condition.set_value(True)
+                self.__unconditional_spin()
 
         else:
-            print(f"!!! Node {self.ref} is already spinning. !!!")
+            print(f"!!! Node {self.ref} is already spinning !!!")
 
     def __unconditional_spin(self):
         """
         Spin while the condition is met.
         """
+        spin_timer = self.create_async_timer(
+            timer_period_sec=self.spin_rate,
+            callback=self.spin_once,
+            ref=self.ref + "_spin_timer"
+            )
 
-        timer = self.create_timer(timer_period_sec=self.threaded_timer_period, 
-                                  callback=self.spin_once)
+        # -> Start all timers
+        for timer in self.async_timers.values():
+            timer.start()
 
-        while self.default_spin_condition.get_value(spin=True):
+        while self.spin_state.get_value(spin=True):
             pass
+
+        # -> Stop all timers
+        for timer in self.timers.values():
+            timer.cancel()
         
-        self.destroy_timer(timer=timer)
-
-        with Lock(redis_client=self.client, name=self.ref):
-            self.spinning = False
-
-            # -> Reset spin control variable
-            self.default_spin_condition.set_value(value=True, instant=True)
+        self.destroy_timer(timer=spin_timer)
 
     def __conditional_spin(self, spin_condition):
         """
         Spin while the condition is met.
         """
-
-        timer = self.create_timer(self.threaded_timer_period, self.spin_once)
-
-        while spin_condition.get_value() and self.default_spin_condition.get_value(spin=True):
+        # -> Create spin timer
+        spin_timer = self.create_async_timer(
+            timer_period_sec=1/self.spin_rate, 
+            callback=self.spin_once
+            )
+        
+        # -> Start all timers
+        for timer in self.async_timers.values():
+            timer.start()
+        
+        # -> Check for kill condition
+        while spin_condition.get_value() and self.spin_state.get_value(spin=True):
             pass
-
-        timer.cancel()
-
-        with Lock(redis_client=self.client, name=self.ref):
-            self.spinning = False
-
-            # -> Reset spin control variable
-            self.default_spin_condition.set_value(value=True, instant=True)
+        
+        # -> Stop all timers
+        for timer in self.timers.values():
+            timer.cancel()
+        
+        # -> Destroy spin timer
+        self.destroy_timer(timer=spin_timer)
 
     def spin_once(self) -> None:
         """
@@ -314,18 +321,20 @@ class PyROS(
     # ================================================================== Misc
     # ---------------------------------------------- Timer
     @property
-    def timers(self):
+    def async_timers(self):
         """
         Get timers that have been created on this node.
         """
 
         # -> Return the list of timers
-        return self._node_dict["timers"]
+        return self._node_dict["async_timers"]
 
     # ----------------- Factory
-    def create_timer(self,
-                     timer_period_sec,
-                     callback) -> Timer:
+    def create_async_timer(self,
+                     timer_period_sec: float,
+                     callback,
+                     ref: str = None
+                     ) -> Async_timer:
         """
         Create a timer that calls the callback function at the given rate.
 
@@ -334,21 +343,23 @@ class PyROS(
         """
 
         # -> Create a timer
-        new_timer = Timer(
+        new_timer = Async_timer(
             timer_period=timer_period_sec,
-            callback=callback)
+            callback=callback,
+            ref=ref
+            )
 
         # -> Start the timer
-        new_timer.start()
+        # new_timer.start()
 
         # -> Add the timer to the node dictionary timers
-        self._node_dict["timers"][new_timer.ref] = new_timer
+        self._node_dict["async_timers"][new_timer.ref] = new_timer
 
         # -> Return the timer object
         return new_timer
 
     # ----------------- Destroyer
-    def destroy_timer(self, timer: Timer) -> None:
+    def destroy_async_timer(self, timer: Async_timer) -> None:
         """
         Destroy the given timer.
         """

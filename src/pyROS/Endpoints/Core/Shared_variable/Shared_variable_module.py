@@ -5,6 +5,21 @@ from dep.pyROS.src.pyROS.Endpoints.Core.Shared_variable.Shared_variable import S
 class Shared_variable_module:
     def __init__(self):
         pass
+    
+    def shared_variables(self):
+        """
+        Get shared_variables that have been created on this node in every callback groups.
+        """
+        # -> Get all the shared_variables in every callback group
+        shared_variables = []
+
+        for callback_group in self.callbackgroups.values():
+            for callback in callback_group.callbacks:
+                if isinstance(callback, Shared_variable):
+                    shared_variables.append(callback)
+
+        # -> Return the list of shared_variables
+        return shared_variables
 
     # ---------------------------------------------- Declaration
     def declare_shared_variable(self,

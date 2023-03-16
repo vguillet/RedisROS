@@ -68,6 +68,7 @@ class Endpoint(ABC):
     @abstractmethod
     def declare_endpoint(self) -> None:
         pass
-
+    
+    @abstractmethod
     def destroy_endpoint(self) -> None:
         pass

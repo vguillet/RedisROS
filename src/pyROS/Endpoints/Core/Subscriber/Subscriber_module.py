@@ -14,9 +14,12 @@ class Subscriber_module:
         """
         # -> Get all the subscriptions in every callback group
         subscriptions = []
-        for callback_group in self.callbackgroups.values():
-            subscriptions += callback_group.get_subscriptions()
 
+        for callback_group in self.callbackgroups.values():
+            for callback in callback_group.callbacks:
+                if isinstance(callback, Subscriber):
+                    subscriptions.append(callback)
+                    
         # -> Return the list of subscriptions
         return subscriptions
 

@@ -4,14 +4,19 @@ import random
 import string
 
 
-class Timer(ThreadTimer):
+class Async_timer(ThreadTimer):
     def __init__(self,
                  timer_period,
-                 callback):
+                 callback,
+                 ref: str = None
+                 ):
         super().__init__(interval=timer_period, function=callback)
 
         # -> Create a unique ID for the timer
-        self.ref = ''.join([random.choice(string.ascii_letters + string.digits) for _ in range(8)])
+        if ref is None: 
+            self.ref = ''.join([random.choice(string.ascii_letters + string.digits) for _ in range(8)])
+        else:
+            self.ref = ref
 
         # -> Initialise the timer properties
         self.timer_period = timer_period
