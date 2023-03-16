@@ -76,6 +76,17 @@ class Shared_variable(Endpoint):
         return value
 
     @property
+    def node_name(self):
+        node_name = self.name.split("/")[-1]
+
+        if self.scope == "local":
+            node_name = self.get_topic(topic_elements=[self.parent_address, node_name])
+        else:
+            node_name = self.get_topic(topic_elements=[node_name])
+
+        return node_name
+
+    @property
     def shared_value(self):
         raw_value = self.client.get(self.name)
         raw_value = json.loads(raw_value)
@@ -202,16 +213,8 @@ class Shared_variable(Endpoint):
             # -> Add edge in redis graph
             redis_graph = Graph(client=self.client, name="ROS_graph")
 
-           # -> Get shared variable name
-            node_name = self.name.split("/")[-1]
-
-            if self.scope == "local":
-                node_name = self.get_topic(topic_elements=[self.parent_address, node_name])
-            else:
-                node_name = self.get_topic(topic_elements=[node_name])
-
             # -> Check if topic node is in graph
-            query = "MATCH (n:shared_variable {name: '%s'}) RETURN n" % (node_name)
+            query = "MATCH (n:shared_variable {name: '%s'}) RETURN n" % (self.node_name)
             topic_node = redis_graph.query(query).result_set
                 
             if len(topic_node) == 0:    # if it does not exist
@@ -219,7 +222,7 @@ class Shared_variable(Endpoint):
                 topic_node = Node(
                     label=["shared_variable", self.scope],
                     properties={
-                        "name": node_name,
+                        "name": self.node_name,
                         "scope": self.scope,
                         "variable_type": self.variable_type,
                         "descriptor": self.descriptor,
@@ -235,7 +238,7 @@ class Shared_variable(Endpoint):
             # -> Create relationship
             edge_properties = "{" + f"namespace: '{self.namespace}', variable_type: '{str(self.variable_type)}'" + "}"
 
-            query = f"MATCH (p:node), (v:shared_variable) WHERE p.name = '{self.parent_address}' AND v.name = '{node_name}' CREATE (p)-[r:Uses {edge_properties}] -> (v) RETURN r"
+            query = f"MATCH (p:node), (v:shared_variable) WHERE p.name = '{self.parent_address}' AND v.name = '{self.node_name}' CREATE (p)-[r:uses {edge_properties}] -> (v) RETURN r"
             redis_graph.query(query)
 
     def destroy_endpoint(self) -> None:
@@ -255,3 +258,20 @@ class Shared_variable(Endpoint):
 
             # -> Update comm_graph shared variable
             self.client.json().set(self.comm_graph, "$",  comm_graph)
+
+            # ======================== Redis graph
+            # -> Get pubsub graph
+            redis_graph = Graph(client=self.client, name="ROS_graph")
+
+            # -> Delete relation
+            query = f"MATCH (p:node)-[r:uses]->(v:shared_variable) WHERE p.name = '{self.parent_address}' AND v.name = '{self.node_name}' DELETE r"
+            redis_graph.query(query)
+
+            # -> Delete shared variable node if no relationships are left to it
+            query = f"MATCH (p:node)-[r:uses]->(v:shared_variable) WHERE v.name = '{self.node_name}' RETURN COUNT(r)"            
+            relations_count = redis_graph.query(query).result_set[0][0]
+
+            if relations_count == 0:
+                query = f"MATCH (v:shared_variable) WHERE v.name = '{self.node_name}' DELETE v"
+                redis_graph.query(query)  
+            

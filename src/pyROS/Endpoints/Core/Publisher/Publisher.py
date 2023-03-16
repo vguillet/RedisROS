@@ -133,7 +133,7 @@ class Publisher(Endpoint):
             # -> Create relationship
             edge_properties = "{" + f"namespace: '{self.namespace}', msg_type: '{str(self.msg_type)}', qos_profile: '{str(self.qos_profile)}'" + "}"
 
-            query = f"MATCH (p:node), (t:topic) WHERE p.name = '{self.parent_address}' AND t.name = '{self.topic}' CREATE (p)-[r:Publish {edge_properties}] -> (t) RETURN r"
+            query = f"MATCH (p:node), (t:topic) WHERE p.name = '{self.parent_address}' AND t.name = '{self.topic}' CREATE (p)-[r:publish {edge_properties}]->(t) RETURN r"
             redis_graph.query(query)
 
     def destroy_endpoint(self) -> None:
@@ -151,3 +151,24 @@ class Publisher(Endpoint):
 
             # -> Update comm_graph shared variable
             self.client.json().set(self.comm_graph, "$",  comm_graph)
+
+            # ======================== Redis graph
+            # -> Get pubsub graph
+            redis_graph = Graph(client=self.client, name="ROS_graph")
+
+            # -> Delete relation
+            query = f"MATCH (p:node)-[r:publish]->(t:topic) WHERE p.name = '{self.parent_address}' AND t.name = '{self.topic}' DELETE r"
+            redis_graph.query(query)
+
+            # -> Delete topic if no relationships are left to topic
+            relations_count = 0
+
+            query = f"MATCH (p:node)-[r:publish]->(t:topic) WHERE t.name = '{self.topic}' RETURN COUNT(r)"            
+            relations_count += redis_graph.query(query).result_set[0][0]
+
+            query = f"MATCH (t:topic)-[r:subscribed]->(p:node) WHERE t.name = '{self.topic}' RETURN COUNT(r)"
+            relations_count += redis_graph.query(query).result_set[0][0]
+
+            if relations_count == 0:
+                query = f"MATCH (t:topic) WHERE t.name = '{self.topic}' DELETE t"
+                redis_graph.query(query)  

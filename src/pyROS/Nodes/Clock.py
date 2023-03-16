@@ -24,11 +24,6 @@ class Clock(PyROS):
             topic=ref
         )
 
-        self.create_timer(
-            timer_period_sec=0.01,
-            callback=self.datetime_callback
-        )
-
     def datetime_callback(self):
         # -> Get real elapsed time
         delta_t = datetime.now() - self.real_start_datetime
@@ -42,3 +37,9 @@ class Clock(PyROS):
 
         # -> Publish sim time
         self.datetime_publisher.publish(msg=sim_datetime_string)
+
+    def run(self):
+        self.create_timer(
+            timer_period_sec=0.01,
+            callback=self.datetime_callback
+        )

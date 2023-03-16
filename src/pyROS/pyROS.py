@@ -51,7 +51,8 @@ class PyROS(
 ):
     def __init__(self, 
                  ref: str = None,
-                 namespace: str = ""
+                 namespace: str = "",
+                 labels: list = []
                  ) -> None:
         # -> Setup endpoint redis connection
         self.client = Redis()
@@ -59,8 +60,8 @@ class PyROS(
         # ---- Initialise the node
         # -> Set id
         self.id = str(id(self))
-
         self.namespace = namespace
+        self.labels = labels
 
         # -> Get comm_graph
         self.comm_graph = "Comm_graph"
@@ -96,14 +97,13 @@ class PyROS(
                 # -> Update comm_graph shared variable
                 self.client.json().set(self.comm_graph, "$",  comm_graph)
 
+            # ======================== Redis graph
             # -> Get pubsub graph
-            # redis_graph = Graph(client=self.client, name="RG" + self.comm_graph)
             redis_graph = Graph(client=self.client, name="ROS_graph")
 
             # -> Add node
             new_node = Node(
-                # alias=self.id,
-                label="node",
+                label=["node"] + self.labels,
                 properties={
                     "name": self.address,
                     "pyROS_id": self.id,
@@ -285,12 +285,31 @@ class PyROS(
 
                 # -> Destroy all the shared variables in the callback
                 elif isinstance(callback, Shared_variable):
-                    self.undeclare_shared_variable(name=callback.name)
+                    self.undeclare_shared_variable(shared_variable=callback)
 
         # -> Destroy every timer in the node
         timer_lst = self._node_dict["timers"]
         for timer in timer_lst:
             self.destroy_timer(timer=timer)
+
+        # -> Remove node from comm graph
+        with Lock(redis_client=self.client, name=self.comm_graph):
+            # -> Get comm_graph shared variable
+            comm_graph = self.client.json().get(self.comm_graph)
+
+            # -> Delete node entry from comm_graph
+            del comm_graph[f"{self.address}"]
+
+            # -> Update comm_graph shared variable
+            self.client.json().set(self.comm_graph, "$",  comm_graph)
+
+            # ======================== Redis graph
+            # -> Get pubsub graph
+            redis_graph = Graph(client=self.client, name="ROS_graph")
+
+            # -> Delete node
+            query = f"MATCH (n:node) WHERE n.name = '{self.address}' DELETE n"
+            redis_graph.query(query)
 
     # ================================================================== Misc
     # ---------------------------------------------- Timer

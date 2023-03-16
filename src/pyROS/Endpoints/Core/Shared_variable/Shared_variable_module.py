@@ -86,22 +86,33 @@ class Shared_variable_module:
         # -> Return the list of shared_variables
         return new_shared_variables
 
-    def undeclare_shared_variable(self, name: str) -> None:
+    def undeclare_shared_variable(self, shared_variable: str) -> None:
         """
         Undeclare a previously declared shared_variable.
         """
-        pass
+        # -> Destroy shared_variable endpoint
+        shared_variable.destroy_endpoint()
+
+        # -> Remove the publisher from its callback group
+        for callback_group in self.callbackgroups.values():
+            if callback_group.has_entity(shared_variable):
+                callback_group.remove_callback(shared_variable)
+                break
 
     # ---------------------------------------------- Getters
     def get_shared_variable(self, name: str) -> Shared_variable:
+        print(f"WARNING: get_shared_variable not implemented yet")
         pass
 
     def get_shared_variables(self, names):
+        print(f"WARNING: get_shared_variables not implemented yet")
         pass
 
     # ---------------------------------------------- Setters
     def set_shared_variable(self, shared_variable: str) -> None:
+        print(f"WARNING: set_shared_variable not implemented yet")
         pass
 
     def set_shared_variables(self, shared_variable_list) -> None:
+        print(f"WARNING: set_shared_variables not implemented yet")
         pass
