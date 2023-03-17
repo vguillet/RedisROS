@@ -84,6 +84,8 @@ class PyROS(
         self.address = self.get_topic(topic_elements=[self.ref])
 
         # -> Declare node
+        self.declared_node = False
+
         with Lock(redis_client=self.client, name=self.comm_graph):
             if not self.client.exists(self.comm_graph):
                 # -> Create comm_graph shared variable
@@ -116,6 +118,8 @@ class PyROS(
 
             redis_graph.add_node(node=new_node)
             redis_graph.commit()
+
+        self.declared_node = True
 
         # -> Initialise the node dictionary
         self._node_dict = {
@@ -295,7 +299,7 @@ class PyROS(
                     self.undeclare_shared_variable(shared_variable=callback)
 
         # -> Destroy every timer in the node
-        timer_lst = self._node_dict["timers"]
+        timer_lst = self._node_dict["async_timers"]
         for timer in timer_lst:
             self.destroy_timer(timer=timer)
 
@@ -368,7 +372,7 @@ class PyROS(
         timer.cancel()
 
         # -> Remove the timer from the node dictionary timers
-        del self._node_dict["timers"][timer.ref]
+        del self._node_dict["async_timers"][timer.ref]
 
 
     @staticmethod
@@ -379,3 +383,7 @@ class PyROS(
             topic += f"{topic_element}/"
 
         return topic[:-1] 
+
+    def __del__(self):
+        if self.declared_node:
+            self.destroy_node()
