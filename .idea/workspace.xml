@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="3bd596d3-491e-4dd1-a80c-44c376362276" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/LICENSE" beforeDir="false" afterPath="$PROJECT_DIR$/LICENSE" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/pyROS/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pyproject.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Async_timer.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Callback_groups.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Config.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Core/Publisher/Publisher.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Core/Publisher/Publisher_module.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Core/Publisher/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Core/Shared_variable/Shared_variable.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Core/Shared_variable/Shared_variable_module.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Core/Shared_variable/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Core/Subscriber/Subscriber.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Core/Subscriber/Subscriber_module.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Core/Subscriber/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Core/Timer/Timer.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Core/Timer/Timer_module.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Core/Timer/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Core/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Custom/ROS_Publisher/ROS_publisher_module.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Custom/ROS_Publisher/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Custom/ROS_Subscriber/ROS_subscriber_module.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Custom/ROS_Subscriber/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Custom/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/Endpoint.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Endpoints/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/Nodes/Clock.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/pyROS/pyROS.py" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectId" id="2NECCspXhTKcZXK3taTRphjuWvQ" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showExcludedFiles" value="false" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ASKED_ADD_EXTERNAL_FILES": "true",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "WebServerToolWindowFactoryState": "false",
+    "last_opened_file_path": "C:/Users/victo/OneDrive/Repositories/pyROS",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "settings.editor.selected.configurable": "preferences.fileTypes",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="3bd596d3-491e-4dd1-a80c-44c376362276" name="Changes" comment="" />
+      <created>1679219730134</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1679219730134</updated>
+      <workItem from="1679219732209" duration="1591000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="UnknownFeatures">
+    <option featureType="com.intellij.fileTypeFactory" implementationName="requirements.txt" />
+  </component>
+</project>
