@@ -24,7 +24,7 @@ from RedisROS.Endpoints import Publisher
 from RedisROS.Endpoints import Subscriber
 from RedisROS.Endpoints import Shared_variable
 from RedisROS.Async_timer import Async_timer
-from RedisROS.Callback_groups import ReentrantCallbackGroup
+from RedisROS.Callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallbackGroup
 
 """
 Callback groups: https://docs.ros.org/en/foxy/How-To-Guides/Using-callback-groups.html
@@ -134,7 +134,7 @@ class Node(
         self.callbackgroups = {
             # Core
             "default_publisher_callback_group": ReentrantCallbackGroup(name="default_publisher_callback_group"),
-            "default_subscriber_callback_group": ReentrantCallbackGroup(name="default_subscriber_callback_group"),
+            "default_subscriber_callback_group": MutuallyExclusiveCallbackGroup(name="default_subscriber_callback_group"),
             "default_shared_variable_callback_group": ReentrantCallbackGroup(name="default_shared_variable_callback_group"),
             "default_timer_callback_group": ReentrantCallbackGroup(name="default_timer_callback_group"),
 
