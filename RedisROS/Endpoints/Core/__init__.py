@@ -1,9 +1,9 @@
 
 # Import classes and functions
-from .Publisher import Publisher
-from .Subscriber import Subscriber
-from .Shared_variable import Shared_variable
-from .Timer import Timer
+from .Publisher.Publisher import Publisher
+from .Subscriber.Subscriber import Subscriber
+from .Shared_variable.Shared_variable import Shared_variable
+from .Timer.Timer import Timer
 
 from .Endpoint_abc import Endpoint_abc
 

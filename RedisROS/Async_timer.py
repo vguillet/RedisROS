@@ -26,6 +26,9 @@ class Async_timer(ThreadTimer):
         while not self.finished.wait(self.interval):
             self.function(*self.args, **self.kwargs)
 
+    def destroy_endpoint(self) -> None:
+        pass
+
 
 if __name__ == "__main__":
     def callback():

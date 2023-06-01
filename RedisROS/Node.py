@@ -232,14 +232,14 @@ class Node(
             )
 
         # -> Start all timers
-        for timer in self.async_timers.values():
+        for timer in self.async_timers:
             timer.start()
 
         while self.spin_state.get_value(spin=True):
             pass
 
         # -> Stop all timers
-        for timer in self.timers.values():
+        for timer in self.timers:
             timer.cancel()
         
         self.destroy_timer(timer=spin_timer)
@@ -255,7 +255,7 @@ class Node(
             )
         
         # -> Start all timers
-        for timer in self.async_timers.values():
+        for timer in self.async_timers:
             timer.start()
         
         # -> Check for kill condition
@@ -263,7 +263,7 @@ class Node(
             pass
         
         # -> Stop all timers
-        for timer in self.timers.values():
+        for timer in self.timers:
             timer.cancel()
         
         # -> Destroy spin timer
@@ -331,7 +331,7 @@ class Node(
         """
 
         # -> Return the list of timers
-        return self._node_dict["async_timers"]
+        return self._node_dict["async_timers"].values()
 
     # ----------------- Factory
     def create_async_timer(self,
