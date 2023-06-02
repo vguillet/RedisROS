@@ -47,6 +47,12 @@ class Subscriber(Endpoint_abc):
         # -> Declare the endpoint in the comm graph
         self.declare_endpoint()
 
+    def __str__(self):
+        return f"{self.parent_node_ref} - Subscriber ({self.id}) to {self.topic}"
+
+    def __repr__(self):
+        return self.__str__()
+
     def spin(self) -> None:
         """
         Retrieve the message from the topic according to the subscriber's qos profile,
@@ -66,7 +72,7 @@ class Subscriber(Endpoint_abc):
                 self.callback(raw_msg["msg"], raw_msg)
             
             # Only provide msg
-            except:
+            except TypeError:
                 self.callback(raw_msg["msg"])
         except:
             print("=============================================================")

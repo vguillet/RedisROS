@@ -41,6 +41,12 @@ class Publisher(Endpoint_abc):
         # -> Declare the endpoint in the comm graph
         self.declare_endpoint()
 
+    def __str__(self):
+        return f"{self.parent_node_ref} - Publisher ({self.id}) to {self.topic}"
+
+    def __repr__(self):
+        return self.__str__()
+
     def __build_msg(self, msg) -> dict:
         # -> Add message metadata
         msg = {

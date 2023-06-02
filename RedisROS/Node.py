@@ -3,6 +3,7 @@ from threading import Thread
 import random
 import string
 import json
+import time
 
 from redis import Redis
 from redis.commands.graph import Graph, Edge
@@ -31,9 +32,9 @@ Callback groups: https://docs.ros.org/en/foxy/How-To-Guides/Using-callback-group
 
         "topic_1/subscribers": [subscriber_1, subscriber_2, ..., subscriber_n,]
         "topic_1/publishers": [publisher_1, publisher_2, ..., publisher_n,]
-        
+
         "Node_1": [(publisher_1, Publisher, topic_1), (subscriber_1, Subscriber, topic_1), ..., (subscriber_n, Subscriber, topic_n),]
-        
+
         # -> Subscriber queues
         "subscriber_1" = [...]
         "subscriber_2" = [...]     
@@ -51,7 +52,7 @@ class Node(
     # ROS_publisher_module,
     # ROS_subscriber_module,
 ):
-    def __init__(self, 
+    def __init__(self,
                  ref: str = None,
                  namespace: str = "",
                  labels: list = []
@@ -99,7 +100,7 @@ class Node(
                 comm_graph[f"{self.address}"] = []
 
                 # -> Update comm_graph shared variable
-                self.client.json().set(self.comm_graph, "$",  comm_graph)
+                self.client.json().set(self.comm_graph, "$", comm_graph)
 
             # ======================== Redis graph
             # -> Get pubsub graph
@@ -134,8 +135,10 @@ class Node(
         self.callbackgroups = {
             # Core
             "default_publisher_callback_group": ReentrantCallbackGroup(name="default_publisher_callback_group"),
-            "default_subscriber_callback_group": MutuallyExclusiveCallbackGroup(name="default_subscriber_callback_group"),
-            "default_shared_variable_callback_group": ReentrantCallbackGroup(name="default_shared_variable_callback_group"),
+            "default_subscriber_callback_group": MutuallyExclusiveCallbackGroup(
+                name="default_subscriber_callback_group"),
+            "default_shared_variable_callback_group": ReentrantCallbackGroup(
+                name="default_shared_variable_callback_group"),
             "default_timer_callback_group": ReentrantCallbackGroup(name="default_timer_callback_group"),
 
             # Custom
@@ -187,7 +190,7 @@ class Node(
         - threaded cannot be used
 
         :param spin_rate: The rate rate at which to spin the node
-        :param condition: A function that returns True or False. A condition must contain a control variable
+        :param condition: A shared variable to be used as a spin condition,
         :param threaded: If True, spin in a separate thread.
         """
         if not self.spin_state.get_value(spin=True):
@@ -229,43 +232,45 @@ class Node(
             timer_period_sec=self.spin_rate,
             callback=self.spin_once,
             ref=self.ref + "_spin_timer"
-            )
+        )
 
         # -> Start all timers
         for timer in self.async_timers:
             timer.start()
 
         while self.spin_state.get_value(spin=True):
+            time.sleep(0.01)
             pass
 
         # -> Stop all timers
         for timer in self.timers:
             timer.cancel()
-        
+
         self.destroy_timer(timer=spin_timer)
 
-    def __conditional_spin(self, spin_condition):
+    def __conditional_spin(self, spin_condition: Shared_variable):
         """
         Spin while the condition is met.
         """
         # -> Create spin timer
         spin_timer = self.create_async_timer(
-            timer_period_sec=1/self.spin_rate, 
+            timer_period_sec=1 / self.spin_rate,
             callback=self.spin_once
-            )
-        
+        )
+
         # -> Start all timers
         for timer in self.async_timers:
             timer.start()
-        
+
         # -> Check for kill condition
-        while spin_condition.get_value() and self.spin_state.get_value(spin=True):
+        while spin_condition.get_value(spin=True) and self.spin_state.get_value(spin=True):
+            time.sleep(0.01)
             pass
-        
+
         # -> Stop all timers
         for timer in self.timers:
             timer.cancel()
-        
+
         # -> Destroy spin timer
         self.destroy_timer(timer=spin_timer)
 
@@ -312,7 +317,7 @@ class Node(
             del comm_graph[f"{self.address}"]
 
             # -> Update comm_graph shared variable
-            self.client.json().set(self.comm_graph, "$",  comm_graph)
+            self.client.json().set(self.comm_graph, "$", comm_graph)
 
             # ======================== Redis graph
             # -> Get pubsub graph
@@ -335,10 +340,10 @@ class Node(
 
     # ----------------- Factory
     def create_async_timer(self,
-                     timer_period_sec: float,
-                     callback,
-                     ref: str = None
-                     ) -> Async_timer:
+                           timer_period_sec: float,
+                           callback,
+                           ref: str = None
+                           ) -> Async_timer:
         """
         Create a timer that calls the callback function at the given rate.
 
@@ -351,7 +356,7 @@ class Node(
             timer_period=timer_period_sec,
             callback=callback,
             ref=ref
-            )
+        )
 
         # -> Start the timer
         # new_timer.start()
@@ -381,8 +386,11 @@ class Node(
         for topic_element in topic_elements:
             topic += f"{topic_element}/"
 
-        return topic[:-1] 
+        return topic[:-1]
 
     def __del__(self):
         if self.declared_node:
-            self.destroy_node()
+            try:
+                self.destroy_node()
+            except:
+                pass
