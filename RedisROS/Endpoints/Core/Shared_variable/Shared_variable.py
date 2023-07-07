@@ -242,14 +242,11 @@ class Shared_variable(Endpoint_abc):
 
         with Lock(redis_client=self.client, name=self.id):
             with Lock(redis_client=self.client, name=self.name):
-                print(f">>>> {self.parent_node_ref} got lock for {self.name}")
                 # -> Get current value
                 current_value = self.get_value(
                     spin=True,  # Spin the shared_variable to get the latest value
                     non_blocking=True  # Make spin non-blocking to avoid deadlocks
                 )
-
-                print(f"{self.parent_node_ref} > Got value")
 
                 # -> Construct the raw value
                 new_value = current_value + other
@@ -257,10 +254,8 @@ class Shared_variable(Endpoint_abc):
                 # -> Update the shared_variable value
                 self.set_value(value=new_value, direct=True, instant=False)
 
-            print(f">>>> {self.parent_node_ref} released lock for {self.name}")
-
-            # -> Return self
-            return self
+        # -> Return self
+        return self
 
     def declare_endpoint(self) -> None:
         with Lock(redis_client=self.client, name=self.comm_graph):
