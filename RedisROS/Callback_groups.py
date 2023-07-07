@@ -56,7 +56,9 @@ class MutuallyExclusiveCallbackGroup(CallbackGroup):
         """
 
         for callback in self.callbacks:
-            callback.spin()
+            # -> If callback is not flagged as manual spin, spin
+            if not callback.manual_spin:
+                callback.spin()
 
 
 class ReentrantCallbackGroup(CallbackGroup):
@@ -72,4 +74,6 @@ class ReentrantCallbackGroup(CallbackGroup):
         with ThreadPoolExecutor(max_workers=worker_pool_size) as executor:
             # -> Call the callbacks in the callback group in threads
             for callback in self.callbacks:
-                executor.submit(callback.spin)
+                # -> If callback is not flagged as manual spin, spin
+                if not callback.manual_spin:
+                    executor.submit(callback.spin)

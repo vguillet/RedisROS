@@ -14,7 +14,8 @@ class Subscriber(Endpoint_abc):
                  msg_type: str = "Unspecified",
                  qos_profile=None,
                  parent_node_ref: str = None,
-                 namespace: str = ""
+                 namespace: str = "",
+                 manual_spin: bool = False
                  ) -> None:
         """
         Create a subscriber endpoint for the given topic
@@ -36,7 +37,9 @@ class Subscriber(Endpoint_abc):
         # -> Setup endpoint
         Endpoint_abc.__init__(self,
                               parent_node_ref=parent_node_ref,
-                              namespace=namespace)
+                              namespace=namespace,
+                              manual_spin=manual_spin
+                              )
 
         # -> Setup the subscriber's pubsub connection
         self.pubsub = self.client.pubsub(ignore_subscribe_messages=True)
@@ -62,24 +65,28 @@ class Subscriber(Endpoint_abc):
         self.pubsub.get_message()
 
     def __callback(self, raw_msg):
-        # -> Convert raw message to dictionary
-        raw_msg = json.loads(raw_msg["data"])
+        """
+        Call the subscriber's callback function
+        """
 
-        # -> Call the subscriber's callback function
-        # Attempt to provide both message and msg meta in callback
-        try:
+        with Lock(redis_client=self.client, name=self.id):
+            # -> Convert raw message to dictionary
+            raw_msg = json.loads(raw_msg["data"])
+
+            # -> Call the subscriber's callback function
+            # Attempt to provide both message and msg meta in callback
             try:
-                self.callback(raw_msg["msg"], raw_msg)
-            
-            # Only provide msg
-            except TypeError:
-                self.callback(raw_msg["msg"])
-        except:
-            print("=============================================================")
-            print(f"ERROR:: {self.parent_address}: Subscriber to {self.topic} callback crashed")
-            print("-------------------------------------------------------------")
-            traceback.print_exc()
-            print("=============================================================")
+                try:
+                    self.callback(raw_msg["msg"], raw_msg)
+                # Only provide msg
+                except TypeError:
+                    self.callback(raw_msg["msg"])
+            except:
+                print("=============================================================")
+                print(f"ERROR:: {self.parent_address}: Subscriber to {self.topic} callback crashed")
+                print("-------------------------------------------------------------")
+                traceback.print_exc()
+                print("=============================================================")
 
     def declare_endpoint(self) -> None:
         with Lock(redis_client=self.client, name=self.comm_graph):
@@ -158,7 +165,7 @@ class Subscriber(Endpoint_abc):
             # -> Delete topic if no relationships are left to topic
             relations_count = 0
 
-            query = f"MATCH (p:node)-[r:publish]->(t:topic) WHERE t.name = '{self.topic}' RETURN COUNT(r)"            
+            query = f"MATCH (p:node)-[r:publish]->(t:topic) WHERE t.name = '{self.topic}' RETURN COUNT(r)"
             relations_count += redis_graph.query(query).result_set[0][0]
 
             query = f"MATCH (t:topic)-[r:subscribed]->(p:node) WHERE t.name = '{self.topic}' RETURN COUNT(r)"
@@ -166,4 +173,4 @@ class Subscriber(Endpoint_abc):
 
             if relations_count == 0:
                 query = f"MATCH (t:topic) WHERE t.name = '{self.topic}' DELETE t"
-                redis_graph.query(query)  
+                redis_graph.query(query)

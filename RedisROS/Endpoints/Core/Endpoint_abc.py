@@ -1,4 +1,3 @@
-
 from abc import ABC, abstractmethod
 import random
 import string
@@ -9,7 +8,8 @@ from redis import Redis
 class Endpoint_abc(ABC):
     def __init__(self,
                  parent_node_ref: str,
-                 namespace: str = ""
+                 namespace: str = "",
+                 manual_spin: bool = False
                  ):
         """
         The base class for all endpoints
@@ -27,6 +27,9 @@ class Endpoint_abc(ABC):
         # -> Set namespace/comm graph
         self.namespace = namespace
 
+        # -> Set manual spin property
+        self.manual_spin = manual_spin
+
         # -> Get comm_graph
         self.comm_graph = "Comm_graph"
 
@@ -43,10 +46,10 @@ class Endpoint_abc(ABC):
         for topic_element in topic_elements:
             topic += f"{topic_element}/"
 
-        if topic[0] == topic[1] and topic[0]:   # TODO: Fix to also check for if == \
+        if topic[0] == topic[1] and topic[0]:  # TODO: Fix to also check for if == \
             topic = topic[1:]
 
-        return topic[:-1] 
+        return topic[:-1]
 
     @staticmethod
     def check_topic(topic):
@@ -68,7 +71,7 @@ class Endpoint_abc(ABC):
     @abstractmethod
     def declare_endpoint(self) -> None:
         pass
-    
+
     @abstractmethod
     def destroy_endpoint(self) -> None:
         pass

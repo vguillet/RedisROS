@@ -27,6 +27,7 @@ class Publisher_module:
     def create_publisher(self,
                          msg_type,
                          topic: str,
+                         manual_spin: bool = False,
                          qos_profile=None,
                          callback_group: MutuallyExclusiveCallbackGroup or ReentrantCallbackGroup = None
                          ) -> Publisher:
@@ -44,6 +45,7 @@ class Publisher_module:
             msg_type=msg_type,
             topic=topic,
             qos_profile=qos_profile,
+            manual_spin=manual_spin,
             parent_node_ref=self.ref,
             namespace=self.namespace
         )

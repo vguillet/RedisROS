@@ -26,6 +26,7 @@ class Timer_module:
     def create_timer(self,
                     timer_period_sec: float,
                     callback,
+                    manual_spin: bool = False,
                     ref: str = None,
                     callback_group: MutuallyExclusiveCallbackGroup or ReentrantCallbackGroup = None
                     ) -> Timer:
@@ -40,6 +41,7 @@ class Timer_module:
         new_timer = Timer(
             timer_period=timer_period_sec,
             callback=callback,
+            manual_spin=manual_spin,
             ref=ref
             )
 

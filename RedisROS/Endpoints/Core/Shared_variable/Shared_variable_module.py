@@ -28,7 +28,9 @@ class Shared_variable_module:
                                 descriptor: str = "",
                                 scope="global",
                                 variable_type: str = "unspecified",
-                                ignore_override: bool = False) -> Shared_variable:
+                                ignore_override: bool = False,
+                                manual_spin: bool = False,
+                                ) -> Shared_variable:
         """
         Declare a shared_variable on the node.
 
@@ -38,6 +40,7 @@ class Shared_variable_module:
         :param scope: The scope of the shared_variable (global or local).
         :param variable_type: The type of the shared_variable.
         :param ignore_override: If True, ignore any existing shared_variables with the same name.
+        :
         """
 
         # -> Check if shared_variable already declared in this node
@@ -59,6 +62,7 @@ class Shared_variable_module:
             variable_type=variable_type,
             descriptor=descriptor,
             ignore_override=ignore_override,
+            manual_spin=manual_spin,
             parent_node_ref=self.ref,
             namespace=self.namespace
             )

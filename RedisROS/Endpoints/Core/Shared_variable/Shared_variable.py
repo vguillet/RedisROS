@@ -68,7 +68,6 @@ class Shared_variable(Endpoint_abc):
             "timestamp": datetime.timestamp(datetime.now()),
             "variable_type": self.variable_type,
             "descriptor": self.descriptor,
-            # "parent_node_ref": self.parent_node_ref,
             "setter_id": self.parent_node_ref,
             "value": value
         }
@@ -93,68 +92,89 @@ class Shared_variable(Endpoint_abc):
 
         return raw_value
 
-    def spin(self) -> None:
+    def spin(self, non_blocking: bool=False) -> None:
         """
         Update the value of the shared_variable to the latest value
         """
 
-        # -> Push cached value if it is not None
-        with Lock(redis_client=self.client, name=self.id):
+        def spin_logic():
+            # ----- Update the shared value
             if self.__cached_value is not None:
+
+                # -> Update the shared value with the cached value if the cached value is newer than the shared value
+                if float(self.__cached_value["timestamp"]) > float(self.shared_value["timestamp"]):
+                    # -> Update the shared_variable shared value
+                    self.client.set(self.name, json.dumps(self.__cached_value))
+
+                    # -> Set local value to cached value
+                    self.__raw_value = self.__cached_value
+                    self.__value = self.__cached_value["value"]
+
+                    # -> Reset cached value
+                    self.__cached_value = None
+
+                    # -> Return as the shared value has been updated
+                    return
+
+                # -> Ignore the cached value as it is older than the current shared value
+                else:
+                    # -> Reset cached value
+                    self.__cached_value = None
+
+            # ----- Set local value to shared value
+            self.__raw_value = self.shared_value
+            self.__value = self.shared_value["value"]
+
+        # -> Get local client lock
+        with Lock(redis_client=self.client, name=self.id):
+            if non_blocking:
+                spin_logic()
+
+            else:
+                # -> Get shared value lock
                 with Lock(redis_client=self.client, name=self.name):
-                    # -> Update the shared value with the cached value if the cached value is newer than the shared value
-                    if float(self.__cached_value["timestamp"]) > float(self.shared_value["timestamp"]):
-                        # -> Update the shared_variable shared value
-                        self.client.set(self.name, json.dumps(self.__cached_value))
+                    spin_logic()
 
-                        # -> Set local value to cached value
-                        self.__raw_value = self.__cached_value
-                        self.__value = self.__cached_value["value"]
 
-                        # -> Reset cached value
-                        self.__cached_value = None
-
-                        return
-
-                # -> Reset cached value
-                self.__cached_value = None
-
-            with Lock(redis_client=self.client, name=self.name):
-                # -> Set local value to shared value
-                self.__raw_value = self.shared_value
-                self.__value = self.shared_value["value"]
-
-    def get_value(self, spin: bool = True):
+    def get_value(self, spin: bool = True, non_blocking: bool = False):
         """
         Get the value of the shared_variable
+
+        :param spin: Whether to spin the shared_variable to get the latest value
+        :param non_blocking: Whether to spin the shared_variable in a non-blocking manner
         """
         if spin:
             # -> Spin the shared_variable to get the latest value
-            self.spin()
+            self.spin(non_blocking=non_blocking)
 
         # -> Return the value of the shared_variable
         return self.__value
 
-    def get_raw_value(self, spin: bool = True):
+    def get_raw_value(self, spin: bool = True, non_blocking: bool = False):
         """
         Get the raw value of the shared_variable
+
+        :param spin: Whether to spin the shared_variable to get the latest value
+        :param non_blocking: Whether to spin the shared_variable in a non-blocking manner
         """
         if spin:
             # -> Spin the shared_variable to get the latest value
-            self.spin()
+            self.spin(non_blocking=non_blocking)
 
         # -> Return the value of the shared_variable
         return self.__raw_value
 
     def set_value(self,
                   value,
+                  direct: bool = False,
                   instant: bool = True) -> None:
         """
         Set the value of the shared_variable
         If instant is True, the value will be set immediately, otherwise it will be set at the next spin
 
         :param value: The value to set the shared_variable to
-        :param instant: Whether to set the value immediately or at the next spin
+        :param direct: Whether to directly set the shared_variable in the shared_variable database
+        :param instant: Whether to spin the shared_variable to get the latest value
         """
 
         # -> Check whether the value is of the right type
@@ -179,7 +199,7 @@ class Shared_variable(Endpoint_abc):
         # -> Construct the raw value
         new_value = self.__build_value(value=value)
 
-        if instant:
+        if direct:
             # -> Update the shared_variable value
             self.client.set(name=self.name, value=json.dumps(new_value))
 
@@ -188,8 +208,45 @@ class Shared_variable(Endpoint_abc):
 
         else:
             # -> Set the cached value
-            with Lock(redis_client=self.client, name=self.name):
-                self.__cached_value = new_value
+            self.__cached_value = new_value
+
+            if instant:
+                # -> Spin the shared_variable to set the latest value
+                self.spin()
+
+    def __add__(self, other):
+        # -> Check whether the value is of the right type
+        if self.variable_type != "unspecified":
+            # -> Convert variable type string to type
+            if self.variable_type == "int" and not isinstance(value, int):
+                warnings.warn(f"Trying to set a value of incorrect type to {self.name} shared_variable, expected int, got {type(value)}")
+                return self
+
+            elif self.variable_type == "float" and not isinstance(value, float):
+                warnings.warn(f"Trying to set a value of incorrect type to {self.name} shared_variable, expected float, got {type(value)}")
+                return self
+
+            elif self.variable_type == "str" and not isinstance(value, str):
+                warnings.warn(f"Trying to set a value of incorrect type to {self.name} shared_variable, expected str, got {type(value)}")
+                return self
+
+            elif self.variable_type == "bool" and not isinstance(value, bool):
+                warnings.warn(f"Trying to set a value of incorrect type to {self.name} shared_variable, expected bool, got {type(value)}")
+                return self
+
+        with Lock(redis_client=self.client, name=self.name):
+            # -> Get current value
+            current_value = self.get_value(spin=True, non_blocking=True)
+
+            # -> Construct the raw value
+            new_value = current_value + other
+
+            # -> Update the shared_variable value
+            self.set_value(value=new_value, direct=True, instant=False)
+
+            # -> Return self
+            return self
+
 
     def declare_endpoint(self) -> None:
         with Lock(redis_client=self.client, name=self.comm_graph):

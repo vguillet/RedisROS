@@ -41,12 +41,6 @@ class Publisher(Endpoint_abc):
         # -> Declare the endpoint in the comm graph
         self.declare_endpoint()
 
-    def __str__(self):
-        return f"{self.parent_node_ref} - Publisher ({self.id}) to {self.topic}"
-
-    def __repr__(self):
-        return self.__str__()
-
     def __build_msg(self, msg) -> dict:
         # -> Add message metadata
         msg = {
@@ -72,6 +66,7 @@ class Publisher(Endpoint_abc):
 
     def publish(self,
                 msg,
+                direct: bool = False,
                 instant: bool = True) -> None:
         """
         Publish the given message to the topic.
@@ -81,6 +76,7 @@ class Publisher(Endpoint_abc):
         - Instant publishing is not supported
 
         :param msg: The message to publish
+        :param direct: Whether to publish the message directly to the redis server
         :param instant: Whether to publish the message instantly or to cache it
         """
 
@@ -88,12 +84,15 @@ class Publisher(Endpoint_abc):
         msg = self.__build_msg(msg=msg)
 
         # -> Publish the message
-        if instant:
+        if direct:
             self.client.publish(self.topic, json.dumps(msg))
 
         else:
             # -> Add the msg to the cache of messages to publish
             self.cache.append(msg)
+
+            if instant:
+                self.spin()
 
     def declare_endpoint(self) -> None:
         with Lock(redis_client=self.client, name=self.comm_graph):
@@ -169,7 +168,7 @@ class Publisher(Endpoint_abc):
             # -> Delete topic if no relationships are left to topic
             relations_count = 0
 
-            query = f"MATCH (p:node)-[r:publish]->(t:topic) WHERE t.name = '{self.topic}' RETURN COUNT(r)"            
+            query = f"MATCH (p:node)-[r:publish]->(t:topic) WHERE t.name = '{self.topic}' RETURN COUNT(r)"
             relations_count += redis_graph.query(query).result_set[0][0]
 
             query = f"MATCH (t:topic)-[r:subscribed]->(p:node) WHERE t.name = '{self.topic}' RETURN COUNT(r)"
@@ -177,4 +176,4 @@ class Publisher(Endpoint_abc):
 
             if relations_count == 0:
                 query = f"MATCH (t:topic) WHERE t.name = '{self.topic}' DELETE t"
-                redis_graph.query(query)  
+                redis_graph.query(query)

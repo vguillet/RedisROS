@@ -15,7 +15,8 @@ class Timer(Endpoint_abc):
                 timer_period: float = 1,
                 ref: str = None,
                 parent_node_ref: str = None,
-                namespace: str = ""
+                namespace: str = "",
+                 manual_spin: bool = False
                 ):
 
         # -> Create a unique ID for the timer
@@ -31,7 +32,9 @@ class Timer(Endpoint_abc):
         # -> Setup endpoint
         Endpoint_abc.__init__(self,
                               parent_node_ref=parent_node_ref,
-                              namespace=namespace)
+                              namespace=namespace,
+                              manual_spin=manual_spin
+                              )
 
         # TODO: Couple timer with run clock to ensure the desired timer_period is achieved
         if timer_period != 1:

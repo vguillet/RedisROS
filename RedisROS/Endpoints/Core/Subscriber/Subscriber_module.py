@@ -1,4 +1,3 @@
-
 from RedisROS.Endpoints import Subscriber
 from RedisROS.Callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 
@@ -19,7 +18,7 @@ class Subscriber_module:
             for callback in callback_group.callbacks:
                 if isinstance(callback, Subscriber):
                     subscriptions.append(callback)
-                    
+
         # -> Return the list of subscriptions
         return subscriptions
 
@@ -28,6 +27,7 @@ class Subscriber_module:
                             msg_type,
                             topic: str,
                             callback,
+                            manual_spin: bool = False,
                             qos_profile=None,
                             callback_group: MutuallyExclusiveCallbackGroup or ReentrantCallbackGroup = None) -> Subscriber:
         """
@@ -48,8 +48,9 @@ class Subscriber_module:
             callback=callback,
             qos_profile=qos_profile,
             parent_node_ref=self.ref,
-            namespace=self.namespace
-            )
+            namespace=self.namespace,
+            manual_spin=manual_spin
+        )
 
         # -> If not callback group is given, use the default publisher callback group
         if callback_group is None:
