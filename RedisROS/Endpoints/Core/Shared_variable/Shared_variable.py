@@ -1,4 +1,3 @@
-
 import warnings
 from datetime import datetime
 import json
@@ -50,7 +49,7 @@ class Shared_variable(Endpoint_abc):
         self.descriptor = descriptor
         self.__value = value
         self.__raw_value = self.__build_value(value=value)  # Raw value format
-        self.__cached_value = None                          # Raw value format
+        self.__cached_value = None  # Raw value format
 
         # -> Check whether the shared_variable exists
         if not self.client.exists(self.name) or ignore_override:
@@ -92,7 +91,7 @@ class Shared_variable(Endpoint_abc):
 
         return raw_value
 
-    def spin(self, non_blocking: bool=False) -> None:
+    def spin(self, non_blocking: bool = False) -> None:
         """
         Update the value of the shared_variable to the latest value
         """
@@ -126,15 +125,14 @@ class Shared_variable(Endpoint_abc):
             self.__value = self.shared_value["value"]
 
         # -> Get local client lock
-        with Lock(redis_client=self.client, name=self.id):
-            if non_blocking:
-                spin_logic()
+        if non_blocking:
+            spin_logic()
 
-            else:
+        else:
+            with Lock(redis_client=self.client, name=self.id):
                 # -> Get shared value lock
                 with Lock(redis_client=self.client, name=self.name):
                     spin_logic()
-
 
     def get_value(self, spin: bool = True, non_blocking: bool = False):
         """
@@ -181,19 +179,23 @@ class Shared_variable(Endpoint_abc):
         if self.variable_type != "unspecified":
             # -> Convert variable type string to type
             if self.variable_type == "int" and not isinstance(value, int):
-                warnings.warn(f"Trying to set a value of incorrect type to {self.name} shared_variable, expected int, got {type(value)}")
+                warnings.warn(
+                    f"Trying to set a value of incorrect type to {self.name} shared_variable, expected int, got {type(value)}")
                 return
 
             elif self.variable_type == "float" and not isinstance(value, float):
-                warnings.warn(f"Trying to set a value of incorrect type to {self.name} shared_variable, expected float, got {type(value)}")
+                warnings.warn(
+                    f"Trying to set a value of incorrect type to {self.name} shared_variable, expected float, got {type(value)}")
                 return
 
             elif self.variable_type == "str" and not isinstance(value, str):
-                warnings.warn(f"Trying to set a value of incorrect type to {self.name} shared_variable, expected str, got {type(value)}")
+                warnings.warn(
+                    f"Trying to set a value of incorrect type to {self.name} shared_variable, expected str, got {type(value)}")
                 return
 
             elif self.variable_type == "bool" and not isinstance(value, bool):
-                warnings.warn(f"Trying to set a value of incorrect type to {self.name} shared_variable, expected bool, got {type(value)}")
+                warnings.warn(
+                    f"Trying to set a value of incorrect type to {self.name} shared_variable, expected bool, got {type(value)}")
                 return
 
         # -> Construct the raw value
@@ -219,34 +221,46 @@ class Shared_variable(Endpoint_abc):
         if self.variable_type != "unspecified":
             # -> Convert variable type string to type
             if self.variable_type == "int" and not isinstance(value, int):
-                warnings.warn(f"Trying to set a value of incorrect type to {self.name} shared_variable, expected int, got {type(value)}")
+                warnings.warn(
+                    f"Trying to set a value of incorrect type to {self.name} shared_variable, expected int, got {type(value)}")
                 return self
 
             elif self.variable_type == "float" and not isinstance(value, float):
-                warnings.warn(f"Trying to set a value of incorrect type to {self.name} shared_variable, expected float, got {type(value)}")
+                warnings.warn(
+                    f"Trying to set a value of incorrect type to {self.name} shared_variable, expected float, got {type(value)}")
                 return self
 
             elif self.variable_type == "str" and not isinstance(value, str):
-                warnings.warn(f"Trying to set a value of incorrect type to {self.name} shared_variable, expected str, got {type(value)}")
+                warnings.warn(
+                    f"Trying to set a value of incorrect type to {self.name} shared_variable, expected str, got {type(value)}")
                 return self
 
             elif self.variable_type == "bool" and not isinstance(value, bool):
-                warnings.warn(f"Trying to set a value of incorrect type to {self.name} shared_variable, expected bool, got {type(value)}")
+                warnings.warn(
+                    f"Trying to set a value of incorrect type to {self.name} shared_variable, expected bool, got {type(value)}")
                 return self
 
-        with Lock(redis_client=self.client, name=self.name):
-            # -> Get current value
-            current_value = self.get_value(spin=True, non_blocking=True)
+        with Lock(redis_client=self.client, name=self.id):
+            with Lock(redis_client=self.client, name=self.name):
+                print(f">>>> {self.parent_node_ref} got lock for {self.name}")
+                # -> Get current value
+                current_value = self.get_value(
+                    spin=True,  # Spin the shared_variable to get the latest value
+                    non_blocking=True  # Make spin non-blocking to avoid deadlocks
+                )
 
-            # -> Construct the raw value
-            new_value = current_value + other
+                print(f"{self.parent_node_ref} > Got value")
 
-            # -> Update the shared_variable value
-            self.set_value(value=new_value, direct=True, instant=False)
+                # -> Construct the raw value
+                new_value = current_value + other
+
+                # -> Update the shared_variable value
+                self.set_value(value=new_value, direct=True, instant=False)
+
+            print(f">>>> {self.parent_node_ref} released lock for {self.name}")
 
             # -> Return self
             return self
-
 
     def declare_endpoint(self) -> None:
         with Lock(redis_client=self.client, name=self.comm_graph):
@@ -264,7 +278,7 @@ class Shared_variable(Endpoint_abc):
             )
 
             # -> Update comm_graph shared variable
-            self.client.json().set(self.comm_graph, "$",  comm_graph)
+            self.client.json().set(self.comm_graph, "$", comm_graph)
 
             # ======================== Redis graph declaration
             # -> Add edge in redis graph
@@ -273,8 +287,8 @@ class Shared_variable(Endpoint_abc):
             # -> Check if topic node is in graph
             query = "MATCH (n:shared_variable {name: '%s'}) RETURN n" % (self.node_name)
             topic_node = redis_graph.query(query).result_set
-                
-            if len(topic_node) == 0:    # if it does not exist
+
+            if len(topic_node) == 0:  # if it does not exist
                 # -> Create topic node
                 topic_node = Node(
                     label=["shared_variable", self.scope],
@@ -314,7 +328,7 @@ class Shared_variable(Endpoint_abc):
             )
 
             # -> Update comm_graph shared variable
-            self.client.json().set(self.comm_graph, "$",  comm_graph)
+            self.client.json().set(self.comm_graph, "$", comm_graph)
 
             # ======================== Redis graph
             # -> Get pubsub graph
@@ -325,10 +339,10 @@ class Shared_variable(Endpoint_abc):
             redis_graph.query(query)
 
             # -> Delete shared variable node if no relationships are left to it
-            query = f"MATCH (p:node)-[r:uses]->(v:shared_variable) WHERE v.name = '{self.node_name}' RETURN COUNT(r)"            
+            query = f"MATCH (p:node)-[r:uses]->(v:shared_variable) WHERE v.name = '{self.node_name}' RETURN COUNT(r)"
             relations_count = redis_graph.query(query).result_set[0][0]
 
             if relations_count == 0:
                 query = f"MATCH (v:shared_variable) WHERE v.name = '{self.node_name}' DELETE v"
-                redis_graph.query(query)  
-            
+                redis_graph.query(query)
+
