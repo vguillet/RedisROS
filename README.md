@@ -3,6 +3,8 @@ A Redis-based pure python alternative to ROS2
 
 [Installation](#installation) |  [Usage](#usage) | [Advanced Topics](#advanced-topics) | [About](#about)
 
+**!!!!! The current published version is unstable, please wait for the next release !!!!!**
+
 ---
 > **Warning** 
 > This library is still in development, and has not been properly tested, use at your own risks
